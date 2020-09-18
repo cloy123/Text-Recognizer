@@ -5,6 +5,8 @@ import android.util.Log;
 
 import com.googlecode.tesseract.android.TessBaseAPI;
 
+import java.util.concurrent.Callable;
+
 public class RecognizeText {
 
     private String DATA_PATH;
@@ -50,11 +52,12 @@ public class RecognizeText {
 
     }
 
+
     public RecognizeText(String dataPath, String langForRec)
     {
         DATA_PATH = dataPath;
         lang = langForRec;
     }
-
-
 }
+
+

@@ -53,6 +53,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.concurrent.ExecutionException;
 
 
 import android.os.Bundle;
@@ -60,8 +61,7 @@ import android.os.Bundle;
 
 public class MainActivity extends AppCompatActivity {
 
-
-
+    
 
     private ImageView imageView;
     private Button cameraButton;
@@ -79,9 +79,11 @@ public class MainActivity extends AppCompatActivity {
 
     private String DATA_PATH; //getExternalFilesDir(null) + "/TesseractSample/";
     private static final String TESSDATA = "tessdata";
-    private String LangForRec = "eng";
 
     private final int REQUEST_PERMISSION_MANAGE_STORAGE = 2;
+
+    private AsyncRecognizeText asyncRecognizeText;
+
 
 
     @Override
@@ -89,34 +91,36 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        imageView = (ImageView)findViewById(R.id.imageView);
+        imageView = findViewById(R.id.imageView);
         imageView.setOnClickListener(OpenGalleryClick);
 
-        cameraButton = (Button)findViewById(R.id.cameraButton);
+        cameraButton = findViewById(R.id.cameraButton);
         cameraButton.setOnClickListener(OpenCameraClick);
 
-        checkRus = (CheckBox)findViewById(R.id.checkRus);
+        checkRus = findViewById(R.id.checkRus);
         checkRus.setOnClickListener(CheckRusClick);
         checkRus.setChecked(false);
 
-        checkEng = (CheckBox)findViewById(R.id.checkEng);
+        checkEng = findViewById(R.id.checkEng);
         checkEng.setOnClickListener(CheckEngClick);
         checkEng.setChecked(true);
 
-        recognizeButton = (Button)findViewById(R.id.recognizeButton);
+        recognizeButton = findViewById(R.id.recognizeButton);
         recognizeButton.setOnClickListener(RecognizeText);
 
-        copyButton = (Button)findViewById(R.id.copyButton);
+        copyButton = findViewById(R.id.copyButton);
         copyButton.setOnClickListener(CopyText);
 
-        text = (EditText)findViewById(R.id.text);
+        text = findViewById(R.id.text);
 
         requestPermissions();
 
         DATA_PATH = getExternalFilesDir(null) + "/TesseractSample/";
         CreateProgramFiles();
 
+        getSupportActionBar().hide();
 
+        asyncRecognizeText = new AsyncRecognizeText();
 
     }
 
@@ -265,26 +269,23 @@ public class MainActivity extends AppCompatActivity {
     private View.OnClickListener RecognizeText = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            if(currentImage != null) {
-                try {
-                    RecognizeText recognizeText = new RecognizeText(DATA_PATH, langForRec);
-                    String res = recognizeText.extractText(currentImage);
-                    text.setText(res);
-                }
-                catch (Exception e)
-                {
-                    text.setText(e.getMessage());
-                }
-
+            final boolean isThreadAlive = asyncRecognizeText.isAlive();
+            if(currentImage != null && !isThreadAlive) {
+                Toast.makeText(getApplicationContext(), "Recognition started.", Toast.LENGTH_LONG).show();
+                asyncRecognizeText = new AsyncRecognizeText();
+                asyncRecognizeText.start();
+            }
+            else if (isThreadAlive)
+            {
+                Toast.makeText(getApplicationContext(), "Wait...", Toast.LENGTH_LONG).show();
             }
             else {
 
-                Toast.makeText(getApplicationContext(), "Отсутсвует изображение", Toast.LENGTH_LONG).show();
+                Toast.makeText(getApplicationContext(), "No picture.", Toast.LENGTH_LONG).show();
             }
 
         }
     };
-
 
     private View.OnClickListener CopyText = new View.OnClickListener() {
         @Override
@@ -293,6 +294,7 @@ public class MainActivity extends AppCompatActivity {
             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             ClipData clip = ClipData.newPlainText("", text.getText());
             clipboard.setPrimaryClip(clip);
+            Toast.makeText(getApplicationContext(), "Text copied.", Toast.LENGTH_LONG).show();
         }
     };
 
@@ -330,7 +332,22 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public class AsyncRecognizeText extends Thread{
+        @Override
+        public void run() {
+                    try {
+                        RecognizeText rt = new RecognizeText(DATA_PATH, langForRec);
+                        String res = rt.extractText(currentImage);
+                        text.setText(res);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.e("", e.getMessage());
+                    }
+        }
 
+
+    }
 
 
 }
