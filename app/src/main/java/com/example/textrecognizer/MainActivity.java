@@ -5,12 +5,14 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -79,10 +81,14 @@ public class MainActivity extends AppCompatActivity {
 
     private String DATA_PATH; //getExternalFilesDir(null) + "/TesseractSample/";
     private static final String TESSDATA = "tessdata";
+    private String TESS_PATH;
 
     private final int REQUEST_PERMISSION_MANAGE_STORAGE = 2;
+    private final int PHOTO_REQUEST_CODE = 3;
 
     private AsyncRecognizeText asyncRecognizeText;
+
+    private Uri outputFileUri;
 
 
 
@@ -116,6 +122,7 @@ public class MainActivity extends AppCompatActivity {
         requestPermissions();
 
         DATA_PATH = getExternalFilesDir(null) + "/TesseractSample/";
+        TESS_PATH = DATA_PATH + TESSDATA;
         CreateProgramFiles();
 
         getSupportActionBar().hide();
@@ -127,11 +134,7 @@ public class MainActivity extends AppCompatActivity {
     private void CreateProgramFiles()
     {
         try {
-            String IMGS_PATH = DATA_PATH + "imgs";
-            String TESS_PATH = DATA_PATH + TESSDATA;
-            File dir = new File(IMGS_PATH);
-            dir.mkdirs();
-            dir = new File(TESS_PATH);
+            File dir = new File(TESS_PATH);
             dir.mkdirs();
         }
         catch (Exception e)
@@ -166,35 +169,6 @@ public class MainActivity extends AppCompatActivity {
             Log.e("", "Unable to copy files to tessdata " + e.toString());
         }
     }
-
-
-
-    private void startCameraActivity() {
-       // try {
-
-
-        //CreateProgramFiles();
-           // String img_path = IMGS_PATH + "/ocr.jpg";
-
-           // outputFileUri = Uri.fromFile(new File(img_path));
-
-          // final Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
-           // takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, outputFileUri);
-
-            //if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
-
-            //    startActivityForResult(takePictureIntent, PHOTO_REQUEST_CODE);
-            //}
-
-
-       // } catch (Exception e) {
-      //      Log.e("", e.getMessage());
-     //   }
-    }
-
-
-
 
 
     private void requestPermissions()
@@ -238,11 +212,53 @@ public class MainActivity extends AppCompatActivity {
         }
     };
 
+    String currentPhotoPath;
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+        // Save a file: path for use with ACTION_VIEW intents
+        currentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
+
 
     private View.OnClickListener OpenCameraClick = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            startCameraActivity();
+            Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            // Ensure that there's a camera activity to handle the intent
+            if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+                // Create the File where the photo should go
+                File photoFile = null;
+                try {
+                    photoFile = createImageFile();
+                } catch (IOException ex) {
+                    // Error occurred while creating the File
+                    Log.e("", ex.getMessage());
+                }
+                // Continue only if the File was successfully created
+                if (photoFile != null) {
+
+                    try {
+                        Context context = getApplicationContext();
+                        Uri path = FileProvider.getUriForFile(context, "com.example.android.fileProvider", photoFile);
+                        outputFileUri = path;
+                        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, path);
+                        startActivityForResult(takePictureIntent, PHOTO_REQUEST_CODE);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.e("", e.getMessage());
+                    }
+                }
+            }
         }
     };
 
@@ -321,6 +337,24 @@ public class MainActivity extends AppCompatActivity {
                   }
                 }
             break;
+
+            case PHOTO_REQUEST_CODE:
+            {
+                    try
+                    {
+                        if(outputFileUri != null)
+                        {
+                            final InputStream imageStream = getContentResolver().openInputStream(outputFileUri);
+                            currentImage = BitmapFactory.decodeStream(imageStream);
+                            imageView.setImageBitmap(currentImage);
+                            outputFileUri = null;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Log.e("", e.getMessage());
+                    }
+            }
         }
     }
 
@@ -332,21 +366,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public class AsyncRecognizeText extends Thread{
+    public class AsyncRecognizeText extends Thread {
         @Override
         public void run() {
-                    try {
-                        RecognizeText rt = new RecognizeText(DATA_PATH, langForRec);
-                        String res = rt.extractText(currentImage);
-                        text.setText(res);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.e("", e.getMessage());
-                    }
+            try {
+                RecognizeText rt = new RecognizeText(DATA_PATH, langForRec);
+                String res = rt.extractText(currentImage);
+                text.setText(res);
+            }
+            catch (Exception e) {
+                Log.e("", e.getMessage());
+            }
         }
-
-
     }
 
 
