@@ -24,6 +24,10 @@
             android:orientation="vertical"
             android:scrollbars="vertical">
 
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="3dp" />
+
             <ImageView
                 android:id="@+id/imageView"
                 android:layout_width="match_parent"
@@ -38,6 +42,19 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:srcCompat="@android:drawable/ic_menu_gallery" />
+
+            <Space
+                android:layout_width="match_parent"
+                android:layout_height="5dp" />
+
+            <Button
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:background="#222222"
+                android:text="Обрезать"
+                android:textColor="#FFFFFF"
+                android:textSize="20dp"
+                android:onClick="croppingClick"/>
 
             <Space
                 android:layout_width="match_parent"

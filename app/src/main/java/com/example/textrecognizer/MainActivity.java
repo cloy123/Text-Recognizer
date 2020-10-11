@@ -41,12 +41,14 @@ import android.graphics.drawable.BitmapDrawable;
 import android.widget.Toast;
 
 import com.googlecode.tesseract.android.TessBaseAPI;
+import com.yalantis.ucrop.UCrop;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.Date;
 import java.util.Locale;
 
@@ -76,6 +78,7 @@ public class MainActivity extends AppCompatActivity {
     private final int Pick_Image = 1;
 
     private Bitmap currentImage;
+    private Uri currentImageUri;
 
     private String langForRec = "eng";
 
@@ -86,9 +89,12 @@ public class MainActivity extends AppCompatActivity {
     private final int REQUEST_PERMISSION_MANAGE_STORAGE = 2;
     private final int PHOTO_REQUEST_CODE = 3;
 
+
     private AsyncRecognizeText asyncRecognizeText;
 
     private Uri outputFileUri;
+
+
 
 
 
@@ -102,6 +108,7 @@ public class MainActivity extends AppCompatActivity {
 
         cameraButton = findViewById(R.id.cameraButton);
         cameraButton.setOnClickListener(OpenCameraClick);
+
 
         checkRus = findViewById(R.id.checkRus);
         checkRus.setOnClickListener(CheckRusClick);
@@ -129,6 +136,36 @@ public class MainActivity extends AppCompatActivity {
 
         asyncRecognizeText = new AsyncRecognizeText();
 
+
+    }
+
+
+    public void croppingClick(View view)
+    {
+        if(currentImageUri == null)
+        {
+            Toast.makeText(this, "No picture.", Toast.LENGTH_LONG);
+            return;
+        }
+        try {
+            String destinationFileName = "SAMPLE_CROPPED_IMG_NAME";
+            destinationFileName += ".jpg";
+            UCrop uCrop = UCrop.of(currentImageUri, Uri.fromFile(new File(getCacheDir(), destinationFileName)));
+                    uCrop.withMaxResultSize(currentImage.getWidth(), currentImage.getHeight());
+                    uCrop.withOptions(getCropOptions());
+                    uCrop.start(MainActivity.this);
+        }
+        catch (Exception e)
+        {
+            Toast.makeText(this, "Error", Toast.LENGTH_LONG);
+        }
+
+    }
+
+    private UCrop.Options getCropOptions(){
+        UCrop.Options options = new UCrop.Options();
+        options.setCompressionQuality(70);
+        return options;
     }
 
     private void CreateProgramFiles()
@@ -192,6 +229,7 @@ public class MainActivity extends AppCompatActivity {
                     // разрешение было предоставлено
                     // выполните здесь необходимые операции для включения функциональности приложения, связанной с запрашиваемым разрешением
                 } else {
+
                     // разрешение не было предоставлено
                     // выполните здесь необходимые операции для выключения функциональности приложения, связанной с запрашиваемым разрешением
                 }
@@ -199,6 +237,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+
 
     private View.OnClickListener OpenGalleryClick = new View.OnClickListener() {
         @Override
@@ -325,8 +365,8 @@ public class MainActivity extends AppCompatActivity {
                 {
                   try
                   {
-                        final Uri imageUri = data.getData();
-                        final InputStream imageStream = getContentResolver().openInputStream(imageUri);
+                        currentImageUri = data.getData();
+                        final InputStream imageStream = getContentResolver().openInputStream(currentImageUri);
                         currentImage = BitmapFactory.decodeStream(imageStream);
                         imageView.setImageBitmap(currentImage);
 
@@ -335,6 +375,10 @@ public class MainActivity extends AppCompatActivity {
                   {
                       Toast.makeText(this, "Ошибка", Toast.LENGTH_LONG).show();
                   }
+                }
+                else
+                {
+                    text.setText(UCrop.getError(data).toString());
                 }
             break;
 
@@ -347,6 +391,7 @@ public class MainActivity extends AppCompatActivity {
                             final InputStream imageStream = getContentResolver().openInputStream(outputFileUri);
                             currentImage = BitmapFactory.decodeStream(imageStream);
                             imageView.setImageBitmap(currentImage);
+                            currentImageUri = outputFileUri;
                             outputFileUri = null;
                         }
                     }
@@ -354,6 +399,23 @@ public class MainActivity extends AppCompatActivity {
                     {
                         Log.e("", e.getMessage());
                     }
+            }
+
+            case UCrop.REQUEST_CROP:
+            {
+                if(resultCode == RESULT_OK)
+                {
+                    try {
+                        currentImageUri = UCrop.getOutput(data);
+                        final InputStream imageStream = getContentResolver().openInputStream(currentImageUri);
+                        currentImage = BitmapFactory.decodeStream(imageStream);
+                        imageView.setImageBitmap(currentImage);
+                    }
+                    catch (Exception e)
+                    {
+                        Toast.makeText(this, "Error", Toast.LENGTH_LONG);
+                    }
+                }
             }
         }
     }
